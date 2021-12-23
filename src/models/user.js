@@ -9,6 +9,10 @@ const userSchema = new mongoose.Schema({
     required: true,
     trim: true,
   },
+  otp:{
+    type:Number,
+    default:0
+  },
   age: {
     type: String,
     required:true,
@@ -58,7 +62,7 @@ userSchema.virtual('tasks',{
 
 userSchema.methods.generateAuthToken=async function (){
   const user = this
-  const token= await jwt.sign({_id:user._id.toString()},'shobhitchoudhary')
+  const token= await jwt.sign({_id:user._id.toString()},process.env.CHECKER)
   user.tokens=user.tokens.concat({token})
   await user.save()
   return token

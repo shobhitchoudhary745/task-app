@@ -3,11 +3,14 @@ const User = require("../models/user");
 const auth=require('../middleware/auth')
 const router = new express.Router();
 const Task=require('../models/task')
+const validator=require('validator')
+const {sendWelcomeEmail,cancelationEmail,forgetEmail}=require('../emails/account')
 router.post("/users", async (req, res) => {
   const user = new User(req.body);
   try {
     await user.save();
     const token = await user.generateAuthToken();
+    sendWelcomeEmail(user.email,user.Name)
     res.status(201).send({ user, token });
   } catch (e) {
     res.status(400).send(e);
@@ -56,6 +59,36 @@ res.status(500).send()
   }
 })
 
+router.post('/forget',async(req,res)=>{
+    email=req.body.email
+    const user=await User.findOne({email})
+    if(!user)
+    return res.status(400).send("{error:'user not found'}")
+    let math=Math.random()*9998
+    if(math<1000)
+    math+=1000
+    forgetEmail(user.email,Math.ceil(math))
+    user.otp=Math.ceil(math) 
+    await user.save()
+    res.status(200).send('we will sent you an otp on your email!')
+})
+
+router.post('/setnewpassword',async(req,res)=>{
+  const email=req.body.email
+  const otp=req.body.otp
+  const user=await User.findOne({email,otp})
+  if(!user)
+  return res.status(400).send({error:'invalid otp'})
+  user.otp=0
+  user.password=req.body.newpassword
+  await user.save()
+  res.status(200).send('password updated successfully')
+})
+
+
+
+
+
 router.post('/users/logoutAll',auth,async(req,res)=>{
    try{
        req.user.tokens=[]
@@ -95,7 +128,7 @@ router.delete("/users/me", auth,async (req, res) => {
   try {
      
      await req.user.remove()
-    
+     cancelationEmail(req.user.email,req.user.Name)
      res.send();
   } catch (e) {
     res.sendStatus(500).send();
